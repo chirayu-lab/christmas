@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Merry Christmas — Interactive Mobile Theme</title>
+
+  <!-- Local PNG (keep in same folder) -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons8-christmas-tree-50.png">
+  <!-- Shortcut and Apple touch -->
+  <link rel="shortcut icon" href="icons8-christmas-tree-50.png">
+  <link rel="apple-touch-icon" href="icons8-christmas-tree-50.png">
+
+  <!-- Inline SVG fallback favicon (works even if the file is missing) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%23071826'/><polygon points='32,8%2012,36%2052,36' fill='%232ecc71'/><polygon points='32,22%2016,46%2048,46' fill='%230b8043'/><rect x='28' y='46' width='8' height='10' fill='%236d4236'/></svg>">
+
+  <!-- Tailwind CDN for quick styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .audio-controller {
+      position: fixed;
+      bottom: 20px;
+      /* center horizontally */
+      left: 50%;
+      transform: translateX(-50%);
+      right: auto;
+
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+      z-index: 60;
+      /* make sure it doesn't overflow on very small screens */
+      max-width: calc(100% - 32px);
+    }
+
+    .audio-controller button {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: white;
+      background: linear-gradient(135deg, #ff512f, #dd2476);
+      transition: transform 0.2s ease;
+    }
+
+    .audio-controller button:hover {
+      transform: scale(1.05);
+    }
+
+    .audio-controller input[type="range"] {
+      width: 120px;
+      cursor: pointer;
+      -webkit-appearance: none;
+      background: transparent;
+    }
+
+    /* Extra custom styles */
+    :root{
+      --bg-a:#071826;
+      --bg-b:#0f3441;
+      --card-bg: rgba(255,255,255,0.04);
+      --accent: #ff4d4d;
+    }
+    .theme-light{
+      --bg-a:#f2fbff;
+      --bg-b:#d6eefc;
+      --card-bg: rgba(8,11,12,0.04);
+      --accent: #2e7d32;
+      color-scheme: light;
+    }
+
+    body{
+      background: linear-gradient(160deg,var(--bg-a),var(--bg-b));
+      min-height:100vh;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    /* animated stars */
+    .stars {
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:0;
+      overflow:hidden;
+    }
+    .star {
+      position:absolute;
+      width:3px;
+      height:3px;
+      background: rgba(255,255,255,0.85);
+      border-radius:50%;
+      opacity:0.9;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.08));
+      animation: twinkle linear infinite;
+    }
+    @keyframes twinkle {
+      0% { transform: scale(1); opacity:.6 }
+      50% { transform: scale(1.6); opacity:1 }
+      100% { transform: scale(1); opacity:.6 }
+    }
+
+    /* snow flakes */
+    .snowflake {
+      position:fixed;
+      top:-5vh;
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #fff, #eef6ff);
+      opacity:.9;
+      pointer-events:none;
+      z-index:3;
+      animation: fall linear infinite;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+    }
+    @keyframes fall {
+      to { transform: translateY(120vh) translateX(var(--drift,0px)) rotate(20deg); opacity:.95; }
+    }
+
+    /* faint blur behind card */
+    .frost {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.04));
+      backdrop-filter: blur(6px) saturate(120%);
+    }
+
+    /* ensure svg tree scales nicely */
+    .tree-svg { max-width: 100%; height: auto; display:block; }
+
+    /* gallery images slight hover on non-touch */
+    @media (hover:hover){
+      .gallery img { transform: translateY(-6px); transition: transform .25s ease; }
+      .gallery img:hover { transform: translateY(-12px) scale(1.02); }
+    }
+
+    /* small screens tweaks */
+    @media (max-width:420px){
+      header h1 { font-size: 1.6rem; }
+      .audio-controller { padding: 10px; gap:8px; }
+      .audio-controller input[type="range"] { width: 90px; }
+    }
+  </style>
+</head>
+
+<body class="antialiased text-white relative">
+
+  <!-- Stars and snow layers (JS will populate) -->
+  <div class="stars" id="stars" aria-hidden="true"></div>
+  <div id="snow-layer" aria-hidden="true"></div>
+
+  <header class="relative z-10 pt-8 pb-2 px-4">
+    <div class="max-w-3xl mx-auto flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <button id="logoBtn" aria-label="Home" class="rounded-full w-12 h-12 flex items-center justify-center bg-white/6 ring-0">
+          <!-- Mini tree icon -->
+          <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3 L7 12 H17 L12 3 Z" stroke-linejoin="round"></path>
+            <rect x="10.5" y="16" width="3" height="4" rx="0.6" />
+          </svg>
+        </button>
+        <div>
+          <h1 class="text-xl font-semibold">Merry Christmas</h1>
+          <p class="text-xs opacity-80">Warm wishes & festive vibes — tap play to hear jingle bells</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="toggleTheme" class="px-3 py-2 rounded-full bg-white/6 text-sm" aria-pressed="false" title="Toggle theme">🌙</button>
+        <button id="muteBtn" class="px-3 py-2 rounded-full bg-white/6 text-sm" title="Play / Pause music">🔔</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="z-10 relative max-w-3xl mx-auto px-4 pb-12">
+    <section class="frost rounded-2xl p-4 md:p-6 shadow-xl" aria-label="Christmas scene card">
+      <div class="flex flex-col md:flex-row gap-4">
+        <!-- Left: Tree + controls -->
+        <div class="flex-1 flex flex-col items-center gap-3">
+          <div class="w-full max-w-xs">
+            <!-- SVG tree -->
+            <svg class="tree-svg" viewBox="0 0 360 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Decorated Christmas tree">
+              <defs>
+                <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#2ecc71"/><stop offset="1" stop-color="#0b8043"/></linearGradient>
+                <radialGradient id="starG" cx="50%" cy="50%"><stop offset="0" stop-color="#fff6b3"/><stop offset="100%" stop-color="#ffd54f00"/></radialGradient>
+              </defs>
+
+              <ellipse cx="180" cy="444" rx="110" ry="12" fill="rgba(0,0,0,0.18)"/>
+              <rect x="160" y="398" width="40" height="46" rx="6" fill="#6d4236"/>
+
+              <g class="transform-g">
+                <polygon points="180,34 48,194 312,194" fill="url(#g1)" />
+                <polygon points="180,130 78,310 282,310" fill="url(#g1)" />
+                <polygon points="180,240 120,380 240,380" fill="url(#g1)"/>
+              </g>
+
+              <g transform="translate(180,20)">
+                <polygon class="star" points="0,-14 3,-4 12,-4 5,1 8,12 0,6 -8,12 -5,1 -12,-4 -3,-4"
+                        fill="url(#starG)" stroke="#ffec8a" stroke-width="1"/>
+              </g>
+
+              <!-- ornaments -->
+              <circle cx="140" cy="180" r="8" fill="#ff5252" />
+              <circle cx="210" cy="160" r="7" fill="#ffd740" />
+              <circle cx="130" cy="250" r="6" fill="#4fc3f7" />
+              <circle cx="235" cy="270" r="8" fill="#f48fb1" />
+              <circle cx="170" cy="320" r="8" fill="#a5d6a7" />
+            </svg>
+          </div>
+
+          <div class="w-full flex gap-2 justify-center">
+            <button id="jingleBtn" class="px-3 py-2 bg-red-600 rounded-lg text-sm shadow">Play Bells</button>
+            <button id="loopBtn" class="px-3 py-2 bg-amber-400 rounded-lg text-sm text-black shadow">Ambient</button>
+          </div>
+        </div>
+
+        <!-- Right: History + gallery (flex) -->
+        <div class="flex-1 flex flex-col gap-3">
+          <div>
+            <h2 class="text-lg font-semibold">History & Stories</h2>
+            <p class="mt-2 text-sm opacity-90">
+              Santa Claus: Inspired by Saint Nicholas, Santa evolved from a 4th-century gift-giver into the jolly, red-suited figure modern children know. He represents generosity, kindness, and the spirit of giving.
+            </p>
+            <p class="mt-2 text-sm opacity-90">
+              Elves: Santa's helpers — imaginatively small, skilled at toy-making — first appear in folklore and later became an iconic part of workshop tales. They make toys, care for reindeer, and keep the North Pole running.
+            </p>
+            <div class="mt-3 text-xs opacity-80">
+              <strong>Fun timeline:</strong>
+              <ul class="list-disc pl-5 mt-1">
+                <li>4th c. — St. Nicholas stories</li>
+                <li>1800s — Santa's modern image forms</li>
+                <li>1900s — Elves & North Pole lore become popular</li>
+              </ul>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-semibold">Photo Gallery</h3>
+            <div class="gallery mt-2 grid grid-cols-3 gap-2 touch-pan-y">
+              <a href="https://www.wikihow.com/images/8/8f/Draw-Christmas-Trees-Step-17.jpg" target="_blank" rel="noopener">
+                <img src="img1.jpg" alt="Christmas lights" class="w-full h-20 object-cover rounded-sm"/>
+              </a>
+              <a href="https://www.wikihow.com/images/8/8f/Draw-Christmas-Trees-Step-17.jpg" target="_blank" rel="noopener">
+                <img src="img2.jpg" alt="Decorated tree" class="w-full h-20 object-cover rounded-sm"/>
+              </a>
+              <a href="https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&s=9c6a" target="_blank" rel="noopener">
+                <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3&s=9c6a" alt="Gifts under tree" class="w-full h-20 object-cover rounded-sm"/>
+              </a>
+            </div>
+            <p class="mt-2 text-xs opacity-70">Tap an image to view full size (opens in a new tab).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Extra cards: messages & history timeline -->
+    <section class="mt-4 rounded-2xl p-3 frost">
+      <h3 class="font-semibold">North Pole Notes</h3>
+      <p class="text-sm mt-2 opacity-90">Elves love cookies! If you're leaving out milk & cookies, add a carrot for Rudolph. Santa checks his list twice — kindness counts even more than toys.</p>
+      <div class="mt-3 flex gap-2">
+        <button id="storyBtn" class="px-3 py-2 rounded-lg bg-white/6 text-sm">Tell Me a Short Story</button>
+        <button id="letterBtn" class="px-3 py-2 rounded-lg bg-white/6 text-sm">Write a Letter</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="audio-controller" aria-label="Audio controls">
+    <button id="playPause" title="Play / Pause" aria-pressed="false">▶</button>
+    <input
+      type="range"
+      id="volume"
+      min="0"
+      max="1"
+      step="0.01"
+      value="0.20"
+      title="Volume"
+      aria-label="Volume"
+    />
+  </div>
+
+  <!-- Local audio file (replace with a real path or URL) -->
+  <audio id="bgMusic" src="jingle-bells-444574.mp3" loop preload="none"></audio>
+
+  <footer class="z-10 relative max-w-3xl mx-auto text-center text-sm opacity-80 pb-8 px-4">
+    © <span id="year">2025</span> • Made with ❤️ • Mobile-ready
+  </footer>
+
+  <!-- Simple accessible dialog for letters (hidden) -->
+  <div id="letterModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-40 p-4">
+    <div class="bg-white/5 backdrop-blur-md rounded-lg w-full max-w-md p-4">
+      <h4 class="font-semibold">Write a letter to Santa</h4>
+      <textarea id="letterText" class="w-full mt-2 p-2 rounded-md bg-white/6 h-32" placeholder="Dear Santa..."></textarea>
+      <div class="mt-3 flex justify-end gap-2">
+        <button id="sendLetter" class="px-3 py-2 rounded bg-emerald-500">Send</button>
+        <button id="closeLetter" class="px-3 py-2 rounded bg-white/6">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ------------------------
+    // AUDIO: native audio controls
+    // ------------------------
+    (function () {
+      const music = document.getElementById("bgMusic");
+      const playPause = document.getElementById("playPause");
+      const volume = document.getElementById("volume");
+
+      // Ensure numeric volume
+      music.volume = parseFloat(volume.value);
+
+      // Reflect initial button state
+      playPause.textContent = music.paused ? "▶" : "⏸";
+      playPause.setAttribute('aria-pressed', !music.paused);
+
+      playPause.addEventListener("click", async () => {
+        try {
+          if (music.paused) {
+            await music.play();
+            playPause.textContent = "⏸";
+            playPause.setAttribute('aria-pressed', 'true');
+          } else {
+            music.pause();
+            playPause.textContent = "▶";
+            playPause.setAttribute('aria-pressed', 'false');
+          }
+        } catch (err) {
+          console.warn("Audio play failed:", err);
+        }
+      });
+
+      volume.addEventListener("input", () => {
+        music.volume = parseFloat(volume.value);
+      });
+
+      music.addEventListener('play', () => {
+        playPause.textContent = "⏸";
+        playPause.setAttribute('aria-pressed', 'true');
+      });
+      music.addEventListener('pause', () => {
+        playPause.textContent = "▶";
+        playPause.setAttribute('aria-pressed', 'false');
+      });
+    })();
+
+    // ---------- small helpers ----------
+    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    // ---------- theme handling ----------
+    (function(){
+      const btn = document.getElementById('toggleTheme');
+      const saved = localStorage.getItem('xmas_theme_v1') || 'dark';
+      function applyTheme(t){
+        if(t === 'light') {
+          document.documentElement.classList.add('theme-light');
+          btn.textContent = '☀️';
+          btn.setAttribute('aria-pressed','true');
+        } else {
+          document.documentElement.classList.remove('theme-light');
+          btn.textContent = '🌙';
+          btn.setAttribute('aria-pressed','false');
+        }
+      }
+      applyTheme(saved);
+      btn.addEventListener('click', ()=>{
+        const next = document.documentElement.classList.contains('theme-light') ? 'dark' : 'light';
+        localStorage.setItem('xmas_theme_v1', next);
+        applyTheme(next);
+      });
+    })();
+
+    // ---------- stars generation ----------
+    (function(){
+      const wrapper = document.getElementById('stars');
+      const count = 35;
+      for(let i=0;i<count;i++){
+        const s = document.createElement('div');
+        s.className = 'star';
+        const left = Math.random()*100;
+        const top = Math.random()*60;
+        s.style.left = left + 'vw';
+        s.style.top = top + 'vh';
+        const size = 1 + Math.random()*3;
+        s.style.width = size + 'px';
+        s.style.height = size + 'px';
+        s.style.opacity = 0.4 + Math.random()*0.7;
+        const dur = 2 + Math.random()*4;
+        s.style.animationDuration = dur + 's';
+        s.style.animationDelay = (Math.random()*2) + 's';
+        wrapper.appendChild(s);
+      }
+    })();
+
+    // ---------- snow generator ----------
+    (function(){
+      const wrapper = document.getElementById('snow-layer');
+      const max = 26;
+      const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(prefersReduced) return;
+      for(let i=0;i<max;i++){
+        const f = document.createElement('div');
+        f.className = 'snowflake';
+        const size = 4 + Math.random()*12;
+        f.style.width = f.style.height = size + 'px';
+        f.style.left = (Math.random()*100) + 'vw';
+        f.style.top = (-5 - Math.random()*10) + 'vh';
+        const dur = 6 + Math.random()*12; // seconds
+        f.style.animationDuration = dur + 's';
+        f.style.animationDelay = (-Math.random()*15) + 's';
+        f.style.setProperty('--drift', (Math.random()*200 - 100) + 'px');
+        wrapper.appendChild(f);
+        setTimeout(()=> f.remove(), (dur + 6)*1000);
+      }
+      setInterval(()=> {
+        for(let i=0;i<6;i++){
+          const f = document.createElement('div');
+          f.className = 'snowflake';
+          const size = 4 + Math.random()*12;
+          f.style.width = f.style.height = size + 'px';
+          f.style.left = (Math.random()*100) + 'vw';
+          f.style.top = (-5 - Math.random()*10) + 'vh';
+          const dur = 8 + Math.random()*14;
+          f.style.animationDuration = dur + 's';
+          f.style.animationDelay = 0 + 's';
+          f.style.setProperty('--drift', (Math.random()*200 - 100) + 'px');
+          wrapper.appendChild(f);
+          setTimeout(()=> f.remove(), (dur + 6)*1000);
+        }
+      }, 7000);
+    })();
+
+    // ---------- year ----------
+    (function(){ document.getElementById('year').textContent = new Date().getFullYear(); })();
+
+    // ---------- modal letter ----------
+    (function(){
+      const open = document.getElementById('letterBtn');
+      const modal = document.getElementById('letterModal');
+      const close = document.getElementById('closeLetter');
+      const send = document.getElementById('sendLetter');
+      const ta = document.getElementById('letterText');
+
+      if (open) open.addEventListener('click', ()=> modal.classList.remove('hidden'), false);
+      if (close) close.addEventListener('click', ()=> modal.classList.add('hidden'), false);
+      if (send) send.addEventListener('click', ()=> {
+        const txt = ta.value.trim();
+        if(!txt) { alert('Write something sweet for Santa!'); return; }
+        alert('Your letter was "sent" to Santa 🎅 — (demo).');
+        ta.value = '';
+        modal.classList.add('hidden');
+      });
+
+      modal.addEventListener('click', (e)=> { if(e.target === modal) modal.classList.add('hidden'); });
+    })();
+
+    // ---------- Simple WebAudio bells and ambient ----------
+    (function(){
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      let ctx = null;
+      let masterGain = null;
+      let ambientOsc = null;
+      let ambientPlaying = false;
+      let jinglePlaying = false;
+      const jingleBtn = document.getElementById('jingleBtn');
+      const loopBtn = document.getElementById('loopBtn');
+      const muteBtn = document.getElementById('muteBtn');
+
+      function ensureCtx(){
+        if(!ctx){
+          ctx = new AudioContext();
+          masterGain = ctx.createGain();
+          masterGain.gain.value = 0.16;
+          masterGain.connect(ctx.destination);
+        }
+      }
+
+      function playBell(time, frequency){
+        ensureCtx();
+        const t = ctx.currentTime + (time || 0);
+        const o1 = ctx.createOscillator();
+        const o2 = ctx.createOscillator();
+        const g1 = ctx.createGain();
+        const g2 = ctx.createGain();
+        o1.type = 'sine'; o2.type = 'sine';
+        o1.frequency.value = frequency;
+        o2.frequency.value = frequency * 1.997;
+        g1.gain.value = 0;
+        g2.gain.value = 0;
+        o1.connect(g1); o2.connect(g2);
+        g1.connect(masterGain); g2.connect(masterGain);
+        g1.gain.setValueAtTime(0, t);
+        g1.gain.linearRampToValueAtTime(1, t + 0.01);
+        g1.gain.exponentialRampToValueAtTime(0.001, t + 3.2);
+        g2.gain.setValueAtTime(0.0, t);
+        g2.gain.linearRampToValueAtTime(0.5, t + 0.02);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + 2.4);
+        const hf = ctx.createBiquadFilter();
+        hf.type = 'highshelf';
+        hf.frequency.value = 2000;
+        hf.gain.value = 6;
+        g1.disconnect(); g2.disconnect();
+        g1.connect(hf); g2.connect(hf);
+        hf.connect(masterGain);
+        o1.start(t); o2.start(t);
+        o1.stop(t + 3.5); o2.stop(t + 3.5);
+      }
+
+      function playJingle(){
+        if(jinglePlaying) return;
+        jinglePlaying = true;
+        ensureCtx();
+        const motif = [659.25, 659.25, 659.25, 523.25, 659.25, 783.99, 392.00];
+        motif.forEach((f, i) => { playBell(i * 0.45, f); });
+        setTimeout(()=> jinglePlaying = false, motif.length * 500 + 1200);
+      }
+
+      function startAmbient(){
+        if(ambientPlaying) return;
+        ensureCtx();
+        ambientOsc = ctx.createOscillator();
+        const o2 = ctx.createOscillator();
+        const g = ctx.createGain();
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'lowpass';
+        bp.frequency.value = 600;
+        ambientOsc.type = 'sine';
+        o2.type = 'triangle';
+        ambientOsc.frequency.value = 110;
+        o2.frequency.value = 55;
+        g.gain.value = 0.12;
+        ambientOsc.connect(bp);
+        o2.connect(bp);
+        bp.connect(g);
+        g.connect(masterGain);
+        ambientOsc.start();
+        o2.start();
+        ambientPlaying = true;
+      }
+      function stopAmbient(){
+        if(!ambientPlaying) return;
+        try{ ambientOsc.stop(); }catch(e){}
+        ambientOsc = null;
+        ambientPlaying = false;
+      }
+
+      if (jingleBtn) jingleBtn.addEventListener('click', async ()=>{ if(!ctx) ensureCtx(); if(ctx && ctx.state === 'suspended') await ctx.resume(); playJingle(); });
+      if (loopBtn) loopBtn.addEventListener('click', async ()=>{ if(!ctx) ensureCtx(); if(ctx && ctx.state === 'suspended') await ctx.resume(); if(!ambientPlaying){ startAmbient(); loopBtn.textContent = 'Ambient On'; loopBtn.classList.remove('bg-amber-400'); loopBtn.classList.add('bg-emerald-500'); } else { stopAmbient(); loopBtn.textContent = 'Ambient'; loopBtn.classList.remove('bg-emerald-500'); loopBtn.classList.add('bg-amber-400'); } });
+      if (muteBtn) muteBtn.addEventListener('click', ()=>{ if(!ctx) ensureCtx(); if(!masterGain) return; if(masterGain.gain.value > 0.02){ masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.02); muteBtn.textContent = '🔕'; } else { masterGain.gain.setTargetAtTime(0.16, ctx.currentTime, 0.02); muteBtn.textContent = '🔔'; } });
+
+      const logoBtn = document.getElementById('logoBtn');
+      if (logoBtn) logoBtn.addEventListener('click', async ()=>{ if(!ctx) ensureCtx(); if(ctx && ctx.state === 'suspended') await ctx.resume(); });
+    })();
+
+    // ---------- small UX: story button reads a tiny story via speech synthesis ----------
+    (function(){
+      const btn = document.getElementById('storyBtn');
+      if (!btn) return;
+      btn.addEventListener('click', ()=> {
+        const msg = "In a snowy workshop at the North Pole, tiny elves craft toys while Santa checks his list. Together they bring joy to children worldwide. Remember: every act of kindness sparkles brighter than any star.";
+        if('speechSynthesis' in window){
+          const utter = new SpeechSynthesisUtterance(msg);
+          utter.rate = 1;
+          utter.pitch = 1.1;
+          speechSynthesis.cancel();
+          speechSynthesis.speak(utter);
+        } else {
+          alert(msg);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
